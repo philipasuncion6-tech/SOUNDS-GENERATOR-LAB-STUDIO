@@ -69,88 +69,43 @@
     if (structure === "VerseChorus") return [parts[0], parts[2], parts[1], parts[2]].map(x => x.join("\n")).join("\n\n");
     return parts.map(x => x.join("\n")).join("\n\n");
   }
-  function renderLyricVideo(title, lyrics, audioBlob) {
-    return new Promise(async (resolve, reject) => {
-      let audioContext, stream, raf = 0;
-      try {
-        if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) throw new Error("Video export is not supported in this browser. Try an updated desktop Chrome.");
-        const canvas = document.createElement("canvas");
-        canvas.width = 1280; canvas.height = 720;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas rendering is unavailable.");
-        const sections = lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
-        audioContext = new AudioContext();
-        const decoded = await audioContext.decodeAudioData(await audioBlob.arrayBuffer());
-        const destination = audioContext.createMediaStreamDestination();
-        const source = audioContext.createBufferSource();
-        source.buffer = decoded; source.connect(destination);
-        const canvasStream = canvas.captureStream(30);
-        stream = new MediaStream([...canvasStream.getVideoTracks(), ...destination.stream.getAudioTracks()]);
-        const candidates = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
-        const mime = candidates.find(type => MediaRecorder.isTypeSupported(type));
-        if (!mime) throw new Error("This browser does not support WebM video recording.");
-        const recorder = new MediaRecorder(stream, { mimeType: mime });
-        const chunks = [];
-        const duration = decoded.duration;
-        const started = performance.now();
-        const wrap = (line, x, y, maxWidth, lineHeight) => {
-          let current = "", row = 0;
-          for (const word of line.split(/\s+/)) {
-            const next = current ? current + " " + word : word;
-            if (ctx.measureText(next).width > maxWidth && current) {
-              ctx.fillText(current, x, y + row++ * lineHeight); current = word;
-            } else current = next;
-          }
-          if (current) ctx.fillText(current, x, y + row * lineHeight);
-        };
-        const draw = () => {
-          const elapsed = Math.min(duration, (performance.now() - started) / 1000);
-          const progress = elapsed / duration;
-          const section = sections[Math.min(sections.length - 1, Math.floor(progress * sections.length))] || title;
-          const hue = (252 + elapsed * 8) % 360;
-          const gradient = ctx.createLinearGradient(0, 0, 1280, 720);
-          gradient.addColorStop(0, "#080d20");
-          gradient.addColorStop(0.55, "hsl(" + hue + " 48% 19%)");
-          gradient.addColorStop(1, "#090b17");
-          ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1280, 720);
-          ctx.globalAlpha = 0.18;
-          for (let i = 0; i < 34; i++) {
-            ctx.beginPath();
-            ctx.arc((i * 173 + elapsed * (18 + i % 5) * 8) % 1280, (i * 97 + Math.sin(elapsed + i) * 28 + 720) % 720, 2 + i % 4, 0, Math.PI * 2);
-            ctx.fillStyle = "#ffffff"; ctx.fill();
-          }
-          ctx.globalAlpha = 1; ctx.textAlign = "center";
-          ctx.fillStyle = "#c4b5fd"; ctx.font = "700 25px system-ui";
-          ctx.fillText("SOUNDS GENERATOR LAB STUDIO", 640, 92);
-          ctx.fillStyle = "#ffffff"; ctx.font = "800 54px system-ui";
-          wrap(title, 640, 190, 1080, 64);
-          ctx.fillStyle = "#f8e7ff"; ctx.font = "600 36px system-ui";
-          section.split("\n").filter(line => !/^\[.*\]$/.test(line)).slice(0, 5).forEach((line, i) => wrap(line, 640, 330 + i * 55, 1080, 44));
-          ctx.fillStyle = "#aab3cf"; ctx.font = "20px system-ui";
-          ctx.fillText("ORIGINAL LYRIC VIDEO • LOCAL BROWSER RENDER", 640, 650);
-          ctx.fillStyle = "#2b3658"; ctx.fillRect(100, 680, 1080, 8);
-          ctx.fillStyle = "#c4b5fd"; ctx.fillRect(100, 680, 1080 * progress, 8);
-          ctx.textAlign = "start";
-          if (elapsed < duration) raf = requestAnimationFrame(draw);
-        };
-        draw();
-        recorder.ondataavailable = event => { if (event.data?.size) chunks.push(event.data); };
-        recorder.onerror = () => reject(new Error("The browser stopped video recording unexpectedly."));
-        recorder.onstop = () => {
-          const video = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
-          if (video.size) resolve(video); else reject(new Error("The browser created an empty video."));
-        };
-        recorder.start(250);
-        source.onended = () => { if (recorder.state !== "inactive") recorder.stop(); };
-        await audioContext.resume();
-        source.start();
-      } catch (error) { reject(error); }
-      finally {
-        // Tracks and context are finalized after the recorder's stop event.
-        const finish = () => { cancelAnimationFrame(raf); stream?.getTracks().forEach(track => track.stop()); if (audioContext && audioContext.state !== "closed") audioContext.close(); };
-        setTimeout(finish, 0);
-      }
-    });
+  async function renderLyricVideo(title, lyrics, audioBlob) {
+    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) throw new Error("Video export is not supported in this browser. Try updated desktop Chrome.");
+    const canvas=document.createElement("canvas");canvas.width=1280;canvas.height=720;
+    const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Canvas rendering is unavailable.");
+    const sections=lyrics.split(/\\n\\s*\\n/).map(s=>s.trim()).filter(Boolean);
+    const ac=new AudioContext();
+    let stream,raf=0;
+    try {
+      const decoded=await ac.decodeAudioData(await audioBlob.arrayBuffer());
+      const destination=ac.createMediaStreamDestination(),source=ac.createBufferSource();
+      source.buffer=decoded;source.connect(destination);
+      const canvasStream=canvas.captureStream(30);
+      stream=new MediaStream([...canvasStream.getVideoTracks(),...destination.stream.getAudioTracks()]);
+      const types=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+      const mime=types.find(type=>MediaRecorder.isTypeSupported(type));
+      if(!mime)throw new Error("This browser does not support WebM video recording.");
+      const recorder=new MediaRecorder(stream,{mimeType:mime}),chunks=[];
+      const duration=decoded.duration,started=performance.now();
+      const wrap=(line,x,y,maxWidth,lineHeight)=>{let current="",row=0;for(const word of line.split(/\\s+/)){const next=current?current+" "+word:word;if(ctx.measureText(next).width>maxWidth&&current){ctx.fillText(current,x,y+row++*lineHeight);current=word;}else current=next;}if(current)ctx.fillText(current,x,y+row*lineHeight);};
+      const draw=()=>{const elapsed=Math.min(duration,(performance.now()-started)/1000),progress=elapsed/duration,index=Math.min(sections.length-1,Math.floor(progress*sections.length)),hue=(252+elapsed*8)%360;
+        const g=ctx.createLinearGradient(0,0,1280,720);g.addColorStop(0,"#080d20");g.addColorStop(.55,"hsl("+hue+" 48% 19%)");g.addColorStop(1,"#090b17");ctx.fillStyle=g;ctx.fillRect(0,0,1280,720);
+        ctx.globalAlpha=.18;for(let i=0;i<34;i++){ctx.beginPath();ctx.arc((i*173+elapsed*(18+i%5)*8)%1280,(i*97+Math.sin(elapsed+i)*28+720)%720,2+i%4,0,Math.PI*2);ctx.fillStyle="#fff";ctx.fill();}ctx.globalAlpha=1;
+        ctx.textAlign="center";ctx.fillStyle="#c4b5fd";ctx.font="700 25px system-ui";ctx.fillText("SOUNDS GENERATOR LAB STUDIO",640,92);
+        ctx.fillStyle="#fff";ctx.font="800 54px system-ui";wrap(title,640,190,1080,64);
+        ctx.fillStyle="#f8e7ff";ctx.font="600 36px system-ui";(sections[index]||title).split("\\n").filter(line=>!/^\\[.*\\]$/.test(line)).slice(0,5).forEach((line,i)=>wrap(line,640,330+i*55,1080,44));
+        ctx.fillStyle="#aab3cf";ctx.font="20px system-ui";ctx.fillText("ORIGINAL LYRIC VIDEO • LOCAL BROWSER RENDER",640,650);
+        ctx.fillStyle="#2b3658";ctx.fillRect(100,680,1080,8);ctx.fillStyle="#c4b5fd";ctx.fillRect(100,680,1080*progress,8);ctx.textAlign="start";
+        if(elapsed<duration)raf=requestAnimationFrame(draw);
+      };
+      draw();
+      const stopped=new Promise((resolve,reject)=>{recorder.ondataavailable=event=>{if(event.data?.size)chunks.push(event.data);};recorder.onerror=()=>reject(new Error("Video recording stopped unexpectedly."));recorder.onstop=resolve;});
+      recorder.start(250);source.onended=()=>{if(recorder.state!=="inactive")recorder.stop();};
+      await ac.resume();source.start();await stopped;
+      const blob=new Blob(chunks,{type:recorder.mimeType||"video/webm"});
+      if(!blob.size)throw new Error("The browser created an empty video.");
+      return blob;
+    } finally {cancelAnimationFrame(raf);stream?.getTracks().forEach(track=>track.stop());if(ac.state!=="closed")await ac.close();}
   }
   const generate = $("#generateBtn");
   if (!generate) return;
