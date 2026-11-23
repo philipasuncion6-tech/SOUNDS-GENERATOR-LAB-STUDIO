@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 let mediaRecorder = null, chunks = [], audioUrl = "", analyser = null, meterFrame = null, audioContext = null, capturedStream = null;
-let sampleReady = false, profileReady = false;
+let sampleReady = false, profileReady = false;\nlet waveformAudioContext = null, waveformSource = null, waveformAnalyser = null, waveformFrame = null;
 const consent = $("#consent"), recordBtn = $("#recordBtn"), stopBtn = $("#stopBtn"), playBtn = $("#playBtn"), analyzeBtn = $("#analyzeBtn"), generateBtn = $("#generateBtn"), recordStatus = $("#recordStatus");
 function setStatus(message) { recordStatus.textContent = message; }
 consent.addEventListener("change", () => { recordBtn.disabled = !consent.checked || mediaRecorder?.state === "recording"; });
@@ -229,7 +229,7 @@ generateBtn.addEventListener("click", () => {
   $("#visualTitle").textContent = title;
   const result = $("#songResult");
   result.hidden = false;
-  result.innerHTML = '<h3>🎵 Your Song Draft</h3><p><strong>' + escapeHtml(title) + '</strong> · ' + escapeHtml(style) + '</p><p><strong>Song idea:</strong> ' + escapeHtml(prompt) + '</p><p><strong>Voice sample:</strong> Captured and locally analyzed in this browser.</p><h4>Lyrics draft</h4><pre class="lyrics">' + escapeHtml(lyrics) + '</pre><p class="engine-note">This is a locally assembled lyric draft, not an AI-generated recording. Next integration: melody and backing track generation, authorized voice singing, lyric timing, and music-video rendering.</p><button type="button" id="downloadLyricsBtn">⬇ Download Lyrics (.txt)</button><div class="music-engine"><h4>🎼 Instrumental Backing Track</h4><p class="engine-note">Create an original 8-bar browser-synthesized melody, chords and rhythm. This is a local demo track, not an AI-generated song.</p><button type="button" id="generateMusicBtn">🎹 Generate Instrumental Preview</button><p id="musicStatus" class="status-text">Ready to build your first instrumental preview.</p><audio id="musicPreview" controls hidden></audio><p><a id="downloadMusicBtn" class="download-link" hidden download="sounds-generator-backing-track.wav">⬇ Download Backing Track (.wav)</a></p></div>';
+  result.innerHTML = '<h3>🎵 Your Song Draft</h3><p><strong>' + escapeHtml(title) + '</strong> · ' + escapeHtml(style) + '</p><p><strong>Song idea:</strong> ' + escapeHtml(prompt) + '</p><p><strong>Voice sample:</strong> Captured and locally analyzed in this browser.</p><h4>Lyrics draft</h4><pre class="lyrics">' + escapeHtml(lyrics) + '</pre><p class="engine-note">This is a locally assembled lyric draft, not an AI-generated recording. Next integration: melody and backing track generation, authorized voice singing, lyric timing, and music-video rendering.</p><button type="button" id="downloadLyricsBtn">⬇ Download Lyrics (.txt)</button><div class="music-engine"><h4>🎼 Instrumental Backing Track</h4><div class="music-meta"><span>Original browser-generated demo</span><span class="engine-badge">AUDIO ENGINE</span></div><p class="engine-note">Create an original 8-bar browser-synthesized melody, chords and rhythm. This is a local demo track, not an AI-generated song.</p><button type="button" id="generateMusicBtn">🎹 Generate Instrumental Preview</button><p id="musicStatus" class="status-text">Ready to build your first instrumental preview.</p><audio id="musicPreview" controls hidden></audio><p><a id="downloadMusicBtn" class="download-link" hidden download="sounds-generator-backing-track.wav">⬇ Download Backing Track (.wav)</a></p></div>';
   $("#downloadLyricsBtn").addEventListener("click", () => {
     const file = new Blob([title + "\nStyle: " + style + "\n\n" + lyrics + "\n"], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(file);
@@ -246,9 +246,9 @@ generateBtn.addEventListener("click", () => {
       const blob = await createBackingTrack(style);
       if (window.currentBackingTrackUrl) URL.revokeObjectURL(window.currentBackingTrackUrl);
       window.currentBackingTrackUrl = URL.createObjectURL(blob);
-      player.src = window.currentBackingTrackUrl; player.hidden = false;
+      player.src = window.currentBackingTrackUrl; player.hidden = false;\n      addVisualizer(player, player.parentElement);
       download.href = window.currentBackingTrackUrl; download.hidden = false;
-      status.textContent = "Instrumental preview ready. Press Play or download the WAV file.";
+      status.textContent = "Instrumental preview ready. Press Play — the live waveform will appear on Android Chrome too.";
     } catch (error) {
       status.textContent = "Could not create audio in this browser. Please try an updated Chrome browser.";
     } finally { button.disabled = false; button.textContent = "🎹 Generate Instrumental Preview"; }
