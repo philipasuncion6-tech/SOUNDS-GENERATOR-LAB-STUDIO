@@ -1,6 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 let mediaRecorder = null, chunks = [], audioUrl = "", analyser = null, meterFrame = null, audioContext = null, capturedStream = null;
-let sampleReady = false, profileReady = false;\nlet waveformAudioContext = null, waveformSource = null, waveformAnalyser = null, waveformFrame = null;
+let sampleReady = false, profileReady = false;\n
 const consent = $("#consent"), recordBtn = $("#recordBtn"), stopBtn = $("#stopBtn"), playBtn = $("#playBtn"), analyzeBtn = $("#analyzeBtn"), generateBtn = $("#generateBtn"), recordStatus = $("#recordStatus");
 function setStatus(message) { recordStatus.textContent = message; }
 consent.addEventListener("change", () => { recordBtn.disabled = !consent.checked || mediaRecorder?.state === "recording"; });
@@ -196,6 +196,110 @@ async function createBackingTrack(style) {
   }
   const rendered = await offline.startRendering();
   return audioBufferToWav(rendered);
+}
+
+
+function formatTime(seconds) {
+  if (!Number.isFinite(seconds)) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+  return m + ":" + s;
+}
+
+function stopWaveformAnimation(player) {
+  if (player._waveformFrame) cancelAnimationFrame(player._waveformFrame);
+  player._waveformFrame = null;
+}
+
+function setupWaveform(player) {
+  if (player._waveformAnalyser) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) throw new Error("Web Audio is not supported");
+  const context = new AudioCtx();
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.78;
+  const source = context.createMediaElementSource(player);
+  source.connect(analyser);
+  analyser.connect(context.destination);
+  player._waveformContext = context;
+  player._waveformSource = source;
+  player._waveformAnalyser = analyser;
+}
+
+function drawWaveform(player, canvas) {
+  const analyser = player._waveformAnalyser;
+  if (!analyser) return;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width = Math.max(300, Math.floor(canvas.clientWidth * devicePixelRatio));
+  const height = canvas.height = Math.max(160, Math.floor(canvas.clientHeight * devicePixelRatio));
+  const data = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(data);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#070d1c";
+  ctx.fillRect(0, 0, width, height);
+
+  const center = height / 2;
+  const gradient = ctx.createLinearGradient(0, 0, width, 0);
+  gradient.addColorStop(0, "#8b5cf6");
+  gradient.addColorStop(.5, "#ec4899");
+  gradient.addColorStop(1, "#60a5fa");
+  ctx.strokeStyle = gradient;
+  ctx.lineWidth = Math.max(1.5, 2 * devicePixelRatio);
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = (i / (data.length - 1)) * width;
+    const y = center + ((data[i] - 128) / 128) * center * .72;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  const bars = 32;
+  const freq = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(freq);
+  const barW = width / bars;
+  for (let i = 0; i < bars; i++) {
+    const v = freq[i * Math.max(1, Math.floor(freq.length / bars))] / 255;
+    const h = v * height * .25;
+    ctx.fillStyle = "rgba(196,181,253,.32)";
+    ctx.fillRect(i * barW + 1, height - h - 7, Math.max(2, barW - 3), h);
+  }
+
+  const timeEl = canvas.parentElement.querySelector(".waveform-time");
+  if (timeEl) timeEl.textContent = formatTime(player.currentTime) + " / " + formatTime(player.duration);
+
+  if (!player.paused && !player.ended) {
+    player._waveformFrame = requestAnimationFrame(() => drawWaveform(player, canvas));
+  }
+}
+
+function wireWaveform(player, canvas) {
+  player.addEventListener("play", async () => {
+    try {
+      setupWaveform(player);
+      if (player._waveformContext.state === "suspended") await player._waveformContext.resume();
+      canvas.parentElement.querySelector(".waveform-empty")?.remove();
+      drawWaveform(player, canvas);
+      canvas.closest(".music-engine")?.querySelector(".engine-badge")?.classList.add("live");
+    } catch {
+      const status = canvas.closest(".music-engine")?.querySelector(".status-text");
+      if (status) status.textContent = "Audio is playing, but the live visualizer is unavailable in this browser.";
+    }
+  });
+  player.addEventListener("pause", () => stopWaveformAnimation(player));
+  player.addEventListener("ended", () => stopWaveformAnimation(player));
+  player.addEventListener("timeupdate", () => {
+    const timeEl = canvas.parentElement.querySelector(".waveform-time");
+    if (timeEl) timeEl.textContent = formatTime(player.currentTime) + " / " + formatTime(player.duration);
+  });
+}
+
+function addVisualizer(player, engineRoot) {
+  const wrap = document.createElement("div");
+  wrap.className = "waveform-wrap";
+  wrap.innerHTML = '<span class="waveform-label">LIVE AUDIO WAVEFORM</span><span class="waveform-time">0:00 / 0:00</span><canvas aria-label="Animated audio waveform"></canvas><div class="waveform-empty">Press Play to activate the live waveform</div>';
+  engineRoot.insertBefore(wrap, player);
+  wireWaveform(player, wrap.querySelector("canvas"));
 }
 
 function escapeHtml(value) {
