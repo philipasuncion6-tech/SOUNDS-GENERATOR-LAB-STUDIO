@@ -20,8 +20,6 @@ async function startRecording() {
     mediaRecorder.onerror = () => setStatus("Recording error. Please try again.");
     mediaRecorder.onstop = () => {
       capturedStream?.getTracks().forEach((track) => track.stop());
-  karaokeMicStream?.getTracks().forEach(track => track.stop());
-  if (karaokeVocalUrl) URL.revokeObjectURL(karaokeVocalUrl);
       capturedStream = null;
       if (meterFrame) cancelAnimationFrame(meterFrame);
       meterFrame = null;
@@ -476,6 +474,8 @@ $("#karaokeStopRecordBtn").addEventListener("click", () => {
 window.addEventListener("beforeunload", () => {
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   capturedStream?.getTracks().forEach((track) => track.stop());
+  karaokeMicStream?.getTracks().forEach(track => track.stop());
+  if (karaokeVocalUrl) URL.revokeObjectURL(karaokeVocalUrl);
 });
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
