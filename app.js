@@ -346,6 +346,8 @@ async function createBackingTrack(style, bpmOverride = null) {
   return audioBufferToWav(rendered);
 }
 
+window.createBackingTrack = createBackingTrack;
+
 function escapeHtml(value) {
   const element = document.createElement("div");
   element.textContent = String(value);
