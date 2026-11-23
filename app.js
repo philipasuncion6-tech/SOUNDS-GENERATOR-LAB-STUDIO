@@ -337,6 +337,12 @@ generateBtn.addEventListener("click", () => {
   $("#karaokeSongSelect").innerHTML = `<option value="current">${escapeHtml(title)} · ${escapeHtml(style)}</option>`;
   $("#karaokeSongSelect").disabled = false;
   $("#karaokeTitle").textContent = title;
+  $("#karaokePlayer").pause();
+  $("#karaokePlayer").removeAttribute("src");
+  $("#karaokePlayer").load();
+  $("#karaokePlayBtn").disabled = true;
+  $("#karaokeRecordBtn").disabled = true;
+  $("#karaokeDownloadVocal").hidden = true;
   $("#karaokeStatus").textContent = "Song added to your local Videoke Library. Generate its instrumental to enable playback.";
   $("#visualTitle").textContent = title;
   const result = $("#songResult");
@@ -452,6 +458,7 @@ $("#karaokeRecordBtn").addEventListener("click", async () => {
       $("#karaokeRecordBtn").disabled = false;
       $("#karaokeStopRecordBtn").disabled = true;
     };
+    if (player.ended) player.currentTime = 0;
     karaokeRecorder.start();
     $("#karaokeRecordBtn").disabled = true;
     $("#karaokeStopRecordBtn").disabled = false;
