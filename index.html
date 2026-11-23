@@ -80,19 +80,30 @@
           <p class="eyebrow">03 • SONG CREATOR</p>
           <h2>Build the song idea</h2>
         </div>
-        <span class="pill">ENGLISH • FIRST BUILD</span>
+        <span class="pill">MULTI-LANGUAGE SONG LAB</span>
       </div>
 
       <div class="form-grid">
         <label>Song title<input id="songTitle" value="My Voice, My Song" maxlength="80"></label>
-        <label>Style
+        <label>Music style
           <select id="style">
-            <option>Pop</option><option>Acoustic</option><option>Ballad</option><option>R&B</option><option>Rock</option>
+            <option>Pop</option><option>Acoustic</option><option>Ballad</option><option>R&amp;B</option><option>Rock</option><option>Cinematic</option><option>Lo-fi</option>
           </select>
         </label>
+        <label>Lyrics language
+          <select id="songLanguage"><option value="English">English</option><option value="Filipino">Filipino</option><option value="Taglish">Taglish</option></select>
+        </label>
+        <label>Song mood
+          <select id="songMood"><option value="Hopeful">Hopeful</option><option value="Romantic">Romantic</option><option value="Heartbreak">Heartbreak</option><option value="Inspirational">Inspirational</option><option value="Celebration">Celebration</option><option value="Peaceful">Peaceful</option></select>
+        </label>
+        <label>Song structure
+          <select id="songStructure"><option value="Full">Full song</option><option value="Short">Short version</option><option value="VerseChorus">Verse + Chorus</option></select>
+        </label>
+        <label>Tempo <output id="tempoValue">100 BPM</output><input id="tempo" type="range" min="60" max="160" step="1" value="100"></label>
       </div>
 
-      <label>Song idea / lyrics prompt<textarea id="prompt" rows="4" placeholder="Write the feeling, story, or message for your song..."></textarea></label>
+      <label>Song idea / lyrics prompt<textarea id="prompt" rows="4" maxlength="600" placeholder="Write the story, person, feeling, or message you want your song to express..."></textarea></label>
+      <p class="engine-note">Create a structured draft, edit every line, then export your lyrics or save your song project. Lyrics are assembled locally from your choices; this is not a cloud AI songwriting service.</p>
 
       <button id="generateBtn" class="primary" disabled>✨ Generate Song Blueprint</button>
       <div id="songResult" class="result" hidden></div>
