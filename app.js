@@ -365,6 +365,8 @@ window.addEventListener("beforeunload", () => {
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   capturedStream?.getTracks().forEach((track) => track.stop());
 });
-if ("serviceWorker" in navigator) {\n  window.addEventListener("load", () => {\n    navigator.serviceWorker.register("./sw.js").catch(() => {});
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
   });
-}\n
+}
