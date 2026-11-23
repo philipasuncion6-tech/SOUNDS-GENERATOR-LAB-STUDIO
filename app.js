@@ -25,6 +25,24 @@ async function startRecording() {
       audioContext = null;
       analyser = null;
       const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      if (!blob.size) {
+        sampleReady = false;
+        profileReady = false;
+        playBtn.disabled = true;
+        analyzeBtn.disabled = true;
+        generateBtn.disabled = true;
+        $("#audioPreview").removeAttribute("src");
+        $("#audioPreview").hidden = true;
+        $("#duration").textContent = "—";
+        $("#level").textContent = "—";
+        $("#profile").textContent = "No audio captured";
+        $("#pitchMedian").textContent = "—";
+        $("#pitchRange").textContent = "—";
+        $("#pitchStability").textContent = "—";
+        $("#analysisNote").textContent = "No audio data was received from the microphone. Please record again and speak clearly.";
+        setStatus("No audio was captured. Please try recording again.");
+        return;
+      }
       if (audioUrl) URL.revokeObjectURL(audioUrl);
       audioUrl = URL.createObjectURL(blob);
       const audio = $("#audioPreview");
