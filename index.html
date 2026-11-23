@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="description" content="SOUNDS GENERATOR LAB STUDIO — voice, songs, lyrics, singing and visual music experiences.">
+  <title>SOUNDS GENERATOR LAB STUDIO</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero">
+      <div class="brand-mark">🎵</div>
+      <div>
+        <p class="eyebrow">WEB CREATIVITY STREAM LAB</p>
+        <h1>SOUNDS GENERATOR LAB STUDIO</h1>
+        <p class="tagline">Turn a voice idea into a song experience.</p>
+      </div>
+    </header>
+
+    <section class="status-card">
+      <span class="status-dot"></span>
+      <div><strong>STUDIO CORE READY</strong><small>English interface • Browser prototype</small></div>
+    </section>
+
+    <section class="steps" aria-label="Creation flow">
+      <div class="step active"><span>1</span><b>VOICE</b><small>Capture</small></div>
+      <div class="step"><span>2</span><b>PROFILE</b><small>Analyze</small></div>
+      <div class="step"><span>3</span><b>SONG</b><small>Create</small></div>
+      <div class="step"><span>4</span><b>VISUAL</b><small>Experience</small></div>
+    </section>
+
+    <section class="studio-card" id="voiceStudio">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">01 • VOICE CATCHER</p>
+          <h2>Capture your voice</h2>
+        </div>
+        <span class="pill">AUTHORIZED VOICE</span>
+      </div>
+      <p class="muted">Record a short sample. This first version keeps audio in your browser and uses it for local analysis and preview.</p>
+
+      <label class="consent"><input id="consent" type="checkbox"> I confirm this is my voice or I have permission to use this recording.</label>
+
+      <div class="controls">
+        <button id="recordBtn" class="primary" disabled>🎙️ Start Recording</button>
+        <button id="stopBtn" disabled>⏹ Stop</button>
+        <button id="playBtn" disabled>▶ Play Sample</button>
+      </div>
+
+      <div class="meter"><div id="meterFill"></div></div>
+      <p id="recordStatus" class="status-text">Ready for a voice sample.</p>
+      <audio id="audioPreview" controls hidden></audio>
+    </section>
+
+    <section class="studio-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">02 • VOICE PROFILE</p>
+          <h2>Analyze the recording</h2>
+        </div>
+        <span class="pill">LOCAL ANALYSIS</span>
+      </div>
+      <div class="profile-grid">
+        <div><span>Duration</span><strong id="duration">—</strong></div>
+        <div><span>Signal level</span><strong id="level">—</strong></div>
+        <div><span>Voice profile</span><strong id="profile">Waiting</strong></div>
+      </div>
+      <button id="analyzeBtn" disabled>🎚️ Analyze Voice</button>
+    </section>
+
+    <section class="studio-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">03 • SONG CREATOR</p>
+          <h2>Build the song idea</h2>
+        </div>
+        <span class="pill">ENGLISH • FIRST BUILD</span>
+      </div>
+
+      <div class="form-grid">
+        <label>Song title<input id="songTitle" value="My Voice, My Song" maxlength="80"></label>
+        <label>Style
+          <select id="style">
+            <option>Pop</option><option>Acoustic</option><option>Ballad</option><option>R&B</option><option>Rock</option>
+          </select>
+        </label>
+      </div>
+
+      <label>Song idea / lyrics prompt<textarea id="prompt" rows="4" placeholder="Write the feeling, story, or message for your song..."></textarea></label>
+
+      <button id="generateBtn" class="primary" disabled>✨ Generate Song Blueprint</button>
+      <div id="songResult" class="result" hidden></div>
+    </section>
+
+    <section class="studio-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">04 • VISUAL MUSIC</p>
+          <h2>Prepare the visual experience</h2>
+        </div>
+        <span class="pill">COMING CORE</span>
+      </div>
+      <div class="visual-preview">
+        <div class="pulse">♪</div>
+        <div><strong id="visualTitle">Your song visual will appear here</strong><p>Lyrics, music, authorized voice singing and animation will plug into this layer as real generation engines are connected.</p></div>
+      </div>
+    </section>
+
+    <footer>
+      <strong>SOUNDS GENERATOR LAB STUDIO</strong>
+      <span>Build once • Test properly • Reuse intelligently • Scale responsibly</span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
