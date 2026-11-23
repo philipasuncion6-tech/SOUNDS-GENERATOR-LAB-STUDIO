@@ -10,3 +10,13 @@ button,input,textarea,select{font:inherit}button{border:0;border-radius:14px;pad
 .music-engine audio{display:block;width:100%;margin:12px 0}
 .download-link{display:inline-block;color:#e9d5ff;font-weight:800;text-decoration:none;border:1px solid #6d55a8;border-radius:12px;padding:10px 13px}
 .download-link:hover{background:#241b3d}
+
+/* Song Creation Studio upgrade */
+.lyrics-editor{display:block;width:100%;min-height:340px;margin:10px 0 14px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#f5f3ff;background:#080e1d;border:1px solid #4a4778}
+.result-actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.video-tools{margin-top:18px;padding:16px;border:1px solid #465078;border-radius:16px;background:linear-gradient(135deg,#171b36,#0a1121)}
+.video-tools h4{margin:0 0 8px;color:#c4b5fd}
+.video-tools button{margin:5px 0}
+#tempo{accent-color:#a78bfa;padding:0;border:0;background:transparent}
+output{display:inline-block;margin-left:8px;color:#e9d5ff;font-weight:800}
+@media(max-width:620px){.result-actions button{flex:1 1 100%}.lyrics-editor{min-height:280px}.video-tools{padding:12px}}
