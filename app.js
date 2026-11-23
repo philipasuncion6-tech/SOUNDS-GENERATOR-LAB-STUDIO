@@ -115,6 +115,89 @@ analyzeBtn.addEventListener("click", async () => {
   } finally { analyzeBtn.disabled = false; }
 });
 
+
+function midiFrequency(note) { return 440 * Math.pow(2, (note - 69) / 12); }
+function addTone(context, frequency, start, duration, type, volume, pan = 0) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  const panner = context.createStereoPanner ? context.createStereoPanner() : null;
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, start);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(volume, start + Math.min(0.04, duration * 0.2));
+  gain.gain.setValueAtTime(volume, Math.max(start + 0.05, start + duration - 0.08));
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  oscillator.connect(gain);
+  if (panner) { panner.pan.value = pan; gain.connect(panner); panner.connect(context.destination); }
+  else gain.connect(context.destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+}
+function addKick(context, start) {
+  const osc = context.createOscillator(), gain = context.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(115, start);
+  osc.frequency.exponentialRampToValueAtTime(42, start + 0.16);
+  gain.gain.setValueAtTime(0.35, start);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + 0.2);
+  osc.connect(gain); gain.connect(context.destination); osc.start(start); osc.stop(start + 0.21);
+}
+function addNoiseHit(context, start, duration, volume, highpass) {
+  const length = Math.max(1, Math.floor(context.sampleRate * duration));
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+  const source = context.createBufferSource(), filter = context.createBiquadFilter(), gain = context.createGain();
+  source.buffer = buffer; filter.type = "highpass"; filter.frequency.value = highpass;
+  gain.gain.setValueAtTime(volume, start); gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+  source.connect(filter); filter.connect(gain); gain.connect(context.destination);
+  source.start(start); source.stop(start + duration);
+}
+function audioBufferToWav(buffer) {
+  const channels = buffer.numberOfChannels, sampleRate = buffer.sampleRate, frames = buffer.length;
+  const bytes = 2, dataSize = frames * channels * bytes;
+  const output = new ArrayBuffer(44 + dataSize), view = new DataView(output);
+  const write = (offset, value) => { for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i)); };
+  write(0, "RIFF"); view.setUint32(4, 36 + dataSize, true); write(8, "WAVE");
+  write(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true); view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytes, true); view.setUint16(32, channels * bytes, true);
+  view.setUint16(34, 16, true); write(36, "data"); view.setUint32(40, dataSize, true);
+  let offset = 44;
+  for (let i = 0; i < frames; i++) for (let ch = 0; ch < channels; ch++) {
+    const sample = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+    view.setInt16(offset, sample < 0 ? sample * 32768 : sample * 32767, true); offset += 2;
+  }
+  return new Blob([output], { type: "audio/wav" });
+}
+async function createBackingTrack(style) {
+  const tempos = { Pop: 100, Acoustic: 92, Ballad: 76, "R&B": 88, Rock: 116 };
+  const bpm = tempos[style] || 100, beat = 60 / bpm, bars = 8, sampleRate = 44100;
+  const duration = bars * 4 * beat + 1;
+  const offline = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
+  const master = offline.createGain(); master.gain.value = 0.72; master.connect(offline.destination);
+  const originalDestination = offline.destination;
+  const progressions = [[60,64,67],[55,59,62],[57,60,64],[53,57,60]];
+  const roots = [48,43,45,41], melody = [72,74,76,79,76,74,72,67];
+  for (let bar = 0; bar < bars; bar++) {
+    const start = bar * 4 * beat, chord = progressions[bar % 4], root = roots[bar % 4];
+    chord.forEach((note, index) => addTone(offline, midiFrequency(note), start, beat * 3.85, "triangle", 0.035, index === 0 ? -0.25 : index === 2 ? 0.25 : 0));
+    addTone(offline, midiFrequency(root), start, beat * 3.7, "sine", 0.11);
+    for (let i = 0; i < 8; i++) {
+      const t = start + i * beat / 2;
+      addTone(offline, midiFrequency(melody[(i + bar) % melody.length]), t, beat * 0.38, "sine", 0.075, i % 2 ? 0.18 : -0.18);
+    }
+    for (let b = 0; b < 4; b++) {
+      const t = start + b * beat;
+      if (b === 0 || b === 2) addKick(offline, t);
+      if (b === 1 || b === 3) addNoiseHit(offline, t, 0.13, 0.10, 900);
+      addNoiseHit(offline, t + 0.02, 0.035, 0.025, 6500);
+    }
+  }
+  const rendered = await offline.startRendering();
+  return audioBufferToWav(rendered);
+}
+
 function escapeHtml(value) {
   const element = document.createElement("div");
   element.textContent = String(value);
@@ -146,7 +229,7 @@ generateBtn.addEventListener("click", () => {
   $("#visualTitle").textContent = title;
   const result = $("#songResult");
   result.hidden = false;
-  result.innerHTML = '<h3>🎵 Your Song Draft</h3><p><strong>' + escapeHtml(title) + '</strong> · ' + escapeHtml(style) + '</p><p><strong>Song idea:</strong> ' + escapeHtml(prompt) + '</p><p><strong>Voice sample:</strong> Captured and locally analyzed in this browser.</p><h4>Lyrics draft</h4><pre class="lyrics">' + escapeHtml(lyrics) + '</pre><p class="engine-note">This is a locally assembled lyric draft, not an AI-generated recording. Next integration: melody and backing track generation, authorized voice singing, lyric timing, and music-video rendering.</p><button type="button" id="downloadLyricsBtn">⬇ Download Lyrics (.txt)</button>';
+  result.innerHTML = '<h3>🎵 Your Song Draft</h3><p><strong>' + escapeHtml(title) + '</strong> · ' + escapeHtml(style) + '</p><p><strong>Song idea:</strong> ' + escapeHtml(prompt) + '</p><p><strong>Voice sample:</strong> Captured and locally analyzed in this browser.</p><h4>Lyrics draft</h4><pre class="lyrics">' + escapeHtml(lyrics) + '</pre><p class="engine-note">This is a locally assembled lyric draft, not an AI-generated recording. Next integration: melody and backing track generation, authorized voice singing, lyric timing, and music-video rendering.</p><button type="button" id="downloadLyricsBtn">⬇ Download Lyrics (.txt)</button><div class="music-engine"><h4>🎼 Instrumental Backing Track</h4><p class="engine-note">Create an original 8-bar browser-synthesized melody, chords and rhythm. This is a local demo track, not an AI-generated song.</p><button type="button" id="generateMusicBtn">🎹 Generate Instrumental Preview</button><p id="musicStatus" class="status-text">Ready to build your first instrumental preview.</p><audio id="musicPreview" controls hidden></audio><p><a id="downloadMusicBtn" class="download-link" hidden download="sounds-generator-backing-track.wav">⬇ Download Backing Track (.wav)</a></p></div>';
   $("#downloadLyricsBtn").addEventListener("click", () => {
     const file = new Blob([title + "\nStyle: " + style + "\n\n" + lyrics + "\n"], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(file);
@@ -155,6 +238,20 @@ generateBtn.addEventListener("click", () => {
     link.download = (title.replace(/[^a-z0-9-_]+/gi, "-") || "song") + "-lyrics.txt";
     link.click();
     URL.revokeObjectURL(url);
+  });
+  $("#generateMusicBtn").addEventListener("click", async () => {
+    const button = $("#generateMusicBtn"), status = $("#musicStatus"), player = $("#musicPreview"), download = $("#downloadMusicBtn");
+    button.disabled = true; button.textContent = "⏳ Creating instrumental…"; status.textContent = "Composing melody, chords and rhythm in this browser.";
+    try {
+      const blob = await createBackingTrack(style);
+      if (window.currentBackingTrackUrl) URL.revokeObjectURL(window.currentBackingTrackUrl);
+      window.currentBackingTrackUrl = URL.createObjectURL(blob);
+      player.src = window.currentBackingTrackUrl; player.hidden = false;
+      download.href = window.currentBackingTrackUrl; download.hidden = false;
+      status.textContent = "Instrumental preview ready. Press Play or download the WAV file.";
+    } catch (error) {
+      status.textContent = "Could not create audio in this browser. Please try an updated Chrome browser.";
+    } finally { button.disabled = false; button.textContent = "🎹 Generate Instrumental Preview"; }
   });
   result.scrollIntoView({ behavior: "smooth", block: "center" });
 });
