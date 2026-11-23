@@ -15,7 +15,20 @@ async function startRecording() {
     if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) options.mimeType = "audio/webm;codecs=opus";
     mediaRecorder = new MediaRecorder(capturedStream, options);
     mediaRecorder.ondataavailable = (event) => { if (event.data?.size) chunks.push(event.data); };
-    mediaRecorder.onerror = () => setStatus("Recording error. Please try again.");
+    mediaRecorder.onerror = () => {
+      capturedStream?.getTracks().forEach((track) => track.stop());
+      capturedStream = null;
+      if (meterFrame) cancelAnimationFrame(meterFrame);
+      meterFrame = null;
+      if (audioContext && audioContext.state !== "closed") audioContext.close();
+      audioContext = null;
+      analyser = null;
+      stopBtn.disabled = true;
+      recordBtn.disabled = !consent.checked;
+      analyzeBtn.disabled = !sampleReady;
+      generateBtn.disabled = !profileReady;
+      setStatus("A microphone recording error occurred. Please check permission and try again.");
+    };
     mediaRecorder.onstop = () => {
       capturedStream?.getTracks().forEach((track) => track.stop());
       capturedStream = null;
@@ -59,16 +72,16 @@ async function startRecording() {
       $("#meterFill").style.width = "0%";
       setStatus("Voice sample captured. Play it back, then analyze your voice.");
     };
+    audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(capturedStream);
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
     mediaRecorder.start();
     recordBtn.disabled = true;
     stopBtn.disabled = false;
     analyzeBtn.disabled = true;
     generateBtn.disabled = true;
     setStatus("Recording… speak naturally for about 5–15 seconds. Press Stop when finished.");
-    audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(capturedStream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
     source.connect(analyser);
     const data = new Uint8Array(analyser.frequencyBinCount);
     const drawMeter = () => {
@@ -84,6 +97,11 @@ async function startRecording() {
   } catch (error) {
     capturedStream?.getTracks().forEach((track) => track.stop());
     capturedStream = null;
+    if (meterFrame) cancelAnimationFrame(meterFrame);
+    meterFrame = null;
+    if (audioContext && audioContext.state !== "closed") await audioContext.close().catch(() => {});
+    audioContext = null;
+    analyser = null;
     recordBtn.disabled = !consent.checked;
     stopBtn.disabled = true;
     setStatus(error?.name === "NotAllowedError" ? "Microphone permission was blocked. Allow microphone access in Chrome site settings, then try again." : "Could not start the microphone. Check that it is connected and not being used by another app.");
