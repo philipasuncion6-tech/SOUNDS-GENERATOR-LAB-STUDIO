@@ -380,7 +380,7 @@ generateBtn.addEventListener("click", () => {
 
 function prepareKaraokeLyrics(lyrics) {
   const host = $("#karaokeLyrics");
-  karaokeLines = String(lyrics || "").split(/\\r?\\n/).map(line => line.trim()).filter(line => line && !/^\\[.*\\]$/.test(line));
+  karaokeLines = String(lyrics || "").split(/\r?\n/).map(line => line.trim()).filter(line => line && !/^\[.*\]$/.test(line));
   host.replaceChildren();
   karaokeLines.forEach((line, index) => {
     const p = document.createElement("p");
