@@ -1,0 +1,10 @@
+{
+  "name":"SOUNDS GENERATOR LAB STUDIO",
+  "short_name":"Sounds Generator",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#070b16",
+  "theme_color":"#0b1020",
+  "description":"Mobile-first browser Song Generator Studio for voice ideas, lyrics, original instrumental previews and visual music.",
+  "icons":[]
+}
