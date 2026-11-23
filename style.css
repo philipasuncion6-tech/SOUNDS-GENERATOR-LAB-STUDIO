@@ -26,3 +26,14 @@ button,input,textarea,select{font:inherit}button{border:0;border-radius:14px;pad
 .visual-preview.ready{border-style:solid;border-color:#6d55a8}
 .visual-preview.ready .pulse{animation:pulse .9s infinite}
 @media(max-width:620px){.waveform-wrap canvas{height:125px}.music-meta{align-items:flex-start;flex-direction:column}.engine-badge{align-self:flex-start}}
+
+/* VIDEOKE MODE */
+.karaoke-screen{margin:16px 0;padding:18px;border:1px solid #3b4670;border-radius:18px;background:radial-gradient(circle at 50% 0%,#20234b,#080e1d 72%);text-align:center;min-height:230px;overflow:hidden}
+.karaoke-topline{display:flex;justify-content:space-between;gap:10px;color:#aab3cf;font-size:.68rem;font-weight:900;letter-spacing:.12em}
+.karaoke-screen h3{margin:15px 0;color:#e9d5ff;font-size:1.15rem}
+.karaoke-lyrics{max-height:260px;overflow:auto;padding:4px 8px;scrollbar-width:thin}
+.karaoke-line{margin:9px 0;color:#7783a5;font-size:1rem;font-weight:700;transition:color .2s,transform .2s,text-shadow .2s}
+.karaoke-line.active{color:#fff;font-size:1.12rem;transform:scale(1.025);text-shadow:0 0 18px #c084fc;font-weight:900}
+.karaoke-placeholder{color:#8994b3;padding:35px 0}
+#karaokePlayer{width:100%;margin:12px 0}
+#karaokeDownloadVocal{margin-top:6px}
