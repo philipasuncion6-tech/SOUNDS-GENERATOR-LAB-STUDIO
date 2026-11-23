@@ -442,12 +442,16 @@ function loadSelectedSong() {
     player.src = song.url;
     player.hidden = false;
     $("#karaokePlayBtn").disabled = false;
+    $("#karaokePauseBtn").disabled = false;
+    $("#karaokeRestartBtn").disabled = false;
     $("#karaokeRecordBtn").disabled = false;
     $("#karaokeStatus").textContent = "Ready to sing " + song.title + ". Lyrics follow the track timeline using estimated line lengths.";
   } else {
     player.removeAttribute("src");
     player.load();
     $("#karaokePlayBtn").disabled = true;
+    $("#karaokePauseBtn").disabled = true;
+    $("#karaokeRestartBtn").disabled = true;
     $("#karaokeRecordBtn").disabled = true;
     $("#karaokeStatus").textContent = "This song has no instrumental yet. Generate its instrumental from its Song Creator card first.";
   }
