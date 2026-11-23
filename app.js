@@ -362,4 +362,4 @@ generateBtn.addEventListener("click", () => {
 window.addEventListener("beforeunload", () => {
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   capturedStream?.getTracks().forEach((track) => track.stop());
-});
+});\nif ("serviceWorker" in navigator) {\n  window.addEventListener("load", () => {\n    navigator.serviceWorker.register("./sw.js").catch(() => {});\n  });\n}\n
