@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 let mediaRecorder = null, chunks = [], audioUrl = "", analyser = null, meterFrame = null, audioContext = null, capturedStream = null;
 let sampleReady = false, profileReady = false;
-let currentSongTitle = "", currentSongLyrics = "", karaokeLines = [], karaokeRecorder = null, karaokeChunks = [], karaokeMicStream = null, karaokeVocalUrl = "";
+let currentSongTitle = "", currentSongLyrics = "", karaokeLines = [], karaokeCues = [], songLibrary = [], selectedSongId = "", karaokeRecorder = null, karaokeChunks = [], karaokeMicStream = null, karaokeVocalUrl = "";
 
 const consent = $("#consent"), recordBtn = $("#recordBtn"), stopBtn = $("#stopBtn"), playBtn = $("#playBtn"), analyzeBtn = $("#analyzeBtn"), generateBtn = $("#generateBtn"), recordStatus = $("#recordStatus");
 function setStatus(message) { recordStatus.textContent = message; }
@@ -332,10 +332,12 @@ generateBtn.addEventListener("click", () => {
   const style = $("#style").value;
   const prompt = $("#prompt").value.trim() || "A heartfelt story about love, hope and unforgettable memories.";
   const lyrics = makeLyricDraft(title, style, prompt);
+  const songEntry = { id: "song-" + Date.now() + "-" + (songLibrary.length + 1), title, style, lyrics, blob: null, url: "" };
+  songLibrary.push(songEntry);
+  selectedSongId = songEntry.id;
   currentSongTitle = title;
   currentSongLyrics = lyrics;
-  $("#karaokeSongSelect").innerHTML = `<option value="current">${escapeHtml(title)} · ${escapeHtml(style)}</option>`;
-  $("#karaokeSongSelect").disabled = false;
+  renderSongLibrary();
   $("#karaokeTitle").textContent = title;
   $("#karaokePlayer").pause();
   $("#karaokePlayer").removeAttribute("src");
@@ -362,16 +364,13 @@ generateBtn.addEventListener("click", () => {
     button.disabled = true; button.textContent = "⏳ Creating instrumental…"; status.textContent = "Composing melody, chords and rhythm in this browser.";
     try {
       const blob = await createBackingTrack(style);
-      if (window.currentBackingTrackUrl) URL.revokeObjectURL(window.currentBackingTrackUrl);
-      window.currentBackingTrackUrl = URL.createObjectURL(blob);
-      player.src = window.currentBackingTrackUrl; player.hidden = false;
-      const karaokePlayer = $("#karaokePlayer");
-      karaokePlayer.src = window.currentBackingTrackUrl;
-      karaokePlayer.hidden = false;
-      prepareKaraokeLyrics(currentSongLyrics);
-      $("#karaokePlayBtn").disabled = false;
-      $("#karaokeRecordBtn").disabled = false;
-      $("#karaokeStatus").textContent = "Karaoke ready. Use headphones, then press Start Karaoke or Sing & Record.";
+      if (songEntry.url) URL.revokeObjectURL(songEntry.url);
+      songEntry.blob = blob;
+      songEntry.url = URL.createObjectURL(blob);
+      renderSongLibrary();
+      player.src = songEntry.url; player.hidden = false;
+      if (selectedSongId === songEntry.id) loadSelectedSong();
+      $("#karaokeStatus").textContent = "Instrumental saved in this browser session. Select it from your Song Library to sing."; 
       addVisualizer(player, player.parentElement);
       download.href = window.currentBackingTrackUrl; download.hidden = false;
       status.textContent = "Instrumental preview ready. Press Play — the live waveform will appear on Android Chrome too.";
@@ -385,6 +384,10 @@ generateBtn.addEventListener("click", () => {
 function prepareKaraokeLyrics(lyrics) {
   const host = $("#karaokeLyrics");
   karaokeLines = String(lyrics || "").split(/\r?\n/).map(line => line.trim()).filter(line => line && !/^\[.*\]$/.test(line));
+  const weights = karaokeLines.map(line => Math.max(1, line.replace(/[^\p{L}\p{N}]/gu, "").length));
+  const totalWeight = weights.reduce((sum, value) => sum + value, 0) || 1;
+  let cursor = 0;
+  karaokeCues = weights.map(weight => { const cue = { start: cursor, end: cursor + weight / totalWeight }; cursor += weight / totalWeight; return cue; });
   host.replaceChildren();
   karaokeLines.forEach((line, index) => {
     const p = document.createElement("p");
@@ -407,18 +410,74 @@ function updateKaraokeLyrics() {
   const current = player.currentTime || 0;
   $("#karaokeClock").textContent = formatTime(current) + " / " + formatTime(duration);
   if (karaokeLines.length && duration > 0) {
-    const index = Math.min(karaokeLines.length - 1, Math.floor((current / duration) * karaokeLines.length));
+    const progress = current / duration;
+    let index = karaokeCues.findIndex(cue => progress >= cue.start && progress < cue.end);
+    if (index < 0) index = karaokeLines.length - 1;
     highlightKaraokeLine(index);
   }
 }
+function renderSongLibrary() {
+  const select = $("#karaokeSongSelect");
+  select.replaceChildren();
+  songLibrary.forEach(song => {
+    const option = document.createElement("option");
+    option.value = song.id;
+    option.textContent = song.title + " · " + song.style + (song.url ? " ✓" : " · instrumental pending");
+    select.appendChild(option);
+  });
+  select.disabled = songLibrary.length === 0;
+  select.value = selectedSongId;
+}
+function loadSelectedSong() {
+  const song = songLibrary.find(item => item.id === selectedSongId);
+  const player = $("#karaokePlayer");
+  if (!song) return;
+  currentSongTitle = song.title;
+  currentSongLyrics = song.lyrics;
+  $("#karaokeTitle").textContent = song.title;
+  prepareKaraokeLyrics(song.lyrics);
+  player.pause();
+  if (song.url) {
+    player.src = song.url;
+    player.hidden = false;
+    $("#karaokePlayBtn").disabled = false;
+    $("#karaokePauseBtn").disabled = false;
+    $("#karaokeRestartBtn").disabled = false;
+    $("#karaokeRecordBtn").disabled = false;
+    $("#karaokeStatus").textContent = "Ready to sing " + song.title + ". Lyrics follow the track timeline using estimated line lengths.";
+  } else {
+    player.removeAttribute("src");
+    player.load();
+    $("#karaokePlayBtn").disabled = true;
+    $("#karaokePauseBtn").disabled = true;
+    $("#karaokeRestartBtn").disabled = true;
+    $("#karaokeRecordBtn").disabled = true;
+    $("#karaokeStatus").textContent = "This song has no instrumental yet. Generate its instrumental from its Song Creator card first.";
+  }
+  $("#karaokeDownloadVocal").hidden = true;
+  updateKaraokeLyrics();
+}
 $("#karaokeSongSelect").addEventListener("change", () => {
-  $("#karaokeTitle").textContent = currentSongTitle || "Your song";
+  selectedSongId = $("#karaokeSongSelect").value;
+  loadSelectedSong();
 });
 $("#karaokePlayer").addEventListener("timeupdate", updateKaraokeLyrics);
 $("#karaokePlayer").addEventListener("loadedmetadata", updateKaraokeLyrics);
 $("#karaokePlayer").addEventListener("ended", () => {
   highlightKaraokeLine(0);
   $("#karaokeStatus").textContent = "Karaoke finished. Replay or record another performance.";
+});
+$("#karaokePauseBtn").addEventListener("click", () => {
+  $("#karaokePlayer").pause();
+  $("#karaokeStatus").textContent = "Karaoke paused.";
+});
+$("#karaokeRestartBtn").addEventListener("click", async () => {
+  const player = $("#karaokePlayer");
+  if (!player.src) return;
+  player.currentTime = 0;
+  highlightKaraokeLine(0);
+  try { await player.play(); $("#karaokeStatus").textContent = "Restarted from the beginning. Sing along!"; }
+  catch { $("#karaokeStatus").textContent = "Ready from the beginning. Press Start Karaoke to play." ; }
 });
 $("#karaokePlayBtn").addEventListener("click", async () => {
   const player = $("#karaokePlayer");
@@ -483,6 +542,7 @@ window.addEventListener("beforeunload", () => {
   capturedStream?.getTracks().forEach((track) => track.stop());
   karaokeMicStream?.getTracks().forEach(track => track.stop());
   if (karaokeVocalUrl) URL.revokeObjectURL(karaokeVocalUrl);
+  songLibrary.forEach(song => { if (song.url) URL.revokeObjectURL(song.url); });
 });
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

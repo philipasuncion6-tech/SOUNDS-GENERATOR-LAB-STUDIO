@@ -115,10 +115,13 @@
       <audio id="karaokePlayer" controls hidden></audio>
       <div class="controls">
         <button id="karaokePlayBtn" class="primary" disabled>▶ Start Karaoke</button>
+        <button id="karaokePauseBtn" disabled>⏸ Pause</button>
+        <button id="karaokeRestartBtn" disabled>↺ Restart</button>
         <button id="karaokeRecordBtn" disabled>🎙️ Sing & Record</button>
         <button id="karaokeStopRecordBtn" disabled>⏹ Stop Recording</button>
       </div>
       <p id="karaokeStatus" class="status-text">Your local song library is waiting for its first generated track.</p>
+      <p class="engine-note">Your generated songs stay in this browser session. Create more than one song to build a selectable local library.</p>
       <a id="karaokeDownloadVocal" class="download-link" hidden>⬇ Download Vocal Recording (.webm)</a>
       <p class="engine-note">First build: karaoke playback and estimated lyric timing for songs created in this studio. A licensed commercial-song catalog, original full-length AI music, and professional vocal synthesis require separate services and music rights.</p>
     </section>
