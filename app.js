@@ -367,6 +367,7 @@ generateBtn.addEventListener("click", () => {
       if (songEntry.url) URL.revokeObjectURL(songEntry.url);
       songEntry.blob = blob;
       songEntry.url = URL.createObjectURL(blob);
+      renderSongLibrary();
       player.src = songEntry.url; player.hidden = false;
       if (selectedSongId === songEntry.id) loadSelectedSong();
       $("#karaokeStatus").textContent = "Instrumental saved in this browser session. Select it from your Song Library to sing."; 
