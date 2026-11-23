@@ -437,7 +437,6 @@ function loadSelectedSong() {
   $("#karaokeTitle").textContent = song.title;
   prepareKaraokeLyrics(song.lyrics);
   player.pause();
-  player.currentTime = 0;
   if (song.url) {
     player.src = song.url;
     player.hidden = false;
