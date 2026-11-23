@@ -318,9 +318,9 @@ function audioBufferToWav(buffer) {
   }
   return new Blob([output], { type: "audio/wav" });
 }
-async function createBackingTrack(style) {
+async function createBackingTrack(style, bpmOverride = null) {
   const tempos = { Pop: 100, Acoustic: 92, Ballad: 76, "R&B": 88, Rock: 116 };
-  const bpm = tempos[style] || 100, beat = 60 / bpm, bars = 8, sampleRate = 44100;
+  const bpm = Math.max(60, Math.min(160, Number(bpmOverride) || tempos[style] || 100)), beat = 60 / bpm, bars = 8, sampleRate = 44100;
   const duration = bars * 4 * beat + 1;
   const offline = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
   const master = offline.createGain(); master.gain.value = 0.72; master.connect(offline.destination);
