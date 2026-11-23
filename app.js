@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 let mediaRecorder = null, chunks = [], audioUrl = "", analyser = null, meterFrame = null, audioContext = null, capturedStream = null;
 let sampleReady = false, profileReady = false;
+let currentSongTitle = "", currentSongLyrics = "", karaokeLines = [], karaokeRecorder = null, karaokeChunks = [], karaokeMicStream = null, karaokeVocalUrl = "";
 
 const consent = $("#consent"), recordBtn = $("#recordBtn"), stopBtn = $("#stopBtn"), playBtn = $("#playBtn"), analyzeBtn = $("#analyzeBtn"), generateBtn = $("#generateBtn"), recordStatus = $("#recordStatus");
 function setStatus(message) { recordStatus.textContent = message; }
@@ -331,6 +332,18 @@ generateBtn.addEventListener("click", () => {
   const style = $("#style").value;
   const prompt = $("#prompt").value.trim() || "A heartfelt story about love, hope and unforgettable memories.";
   const lyrics = makeLyricDraft(title, style, prompt);
+  currentSongTitle = title;
+  currentSongLyrics = lyrics;
+  $("#karaokeSongSelect").innerHTML = `<option value="current">${escapeHtml(title)} · ${escapeHtml(style)}</option>`;
+  $("#karaokeSongSelect").disabled = false;
+  $("#karaokeTitle").textContent = title;
+  $("#karaokePlayer").pause();
+  $("#karaokePlayer").removeAttribute("src");
+  $("#karaokePlayer").load();
+  $("#karaokePlayBtn").disabled = true;
+  $("#karaokeRecordBtn").disabled = true;
+  $("#karaokeDownloadVocal").hidden = true;
+  $("#karaokeStatus").textContent = "Song added to your local Videoke Library. Generate its instrumental to enable playback.";
   $("#visualTitle").textContent = title;
   const result = $("#songResult");
   result.hidden = false;
@@ -352,6 +365,13 @@ generateBtn.addEventListener("click", () => {
       if (window.currentBackingTrackUrl) URL.revokeObjectURL(window.currentBackingTrackUrl);
       window.currentBackingTrackUrl = URL.createObjectURL(blob);
       player.src = window.currentBackingTrackUrl; player.hidden = false;
+      const karaokePlayer = $("#karaokePlayer");
+      karaokePlayer.src = window.currentBackingTrackUrl;
+      karaokePlayer.hidden = false;
+      prepareKaraokeLyrics(currentSongLyrics);
+      $("#karaokePlayBtn").disabled = false;
+      $("#karaokeRecordBtn").disabled = false;
+      $("#karaokeStatus").textContent = "Karaoke ready. Use headphones, then press Start Karaoke or Sing & Record.";
       addVisualizer(player, player.parentElement);
       download.href = window.currentBackingTrackUrl; download.hidden = false;
       status.textContent = "Instrumental preview ready. Press Play — the live waveform will appear on Android Chrome too.";
@@ -361,9 +381,108 @@ generateBtn.addEventListener("click", () => {
   });
   result.scrollIntoView({ behavior: "smooth", block: "center" });
 });
+
+function prepareKaraokeLyrics(lyrics) {
+  const host = $("#karaokeLyrics");
+  karaokeLines = String(lyrics || "").split(/\r?\n/).map(line => line.trim()).filter(line => line && !/^\[.*\]$/.test(line));
+  host.replaceChildren();
+  karaokeLines.forEach((line, index) => {
+    const p = document.createElement("p");
+    p.className = "karaoke-line";
+    p.textContent = line;
+    p.dataset.index = String(index);
+    host.appendChild(p);
+  });
+  highlightKaraokeLine(0);
+}
+function highlightKaraokeLine(index) {
+  const lines = $("#karaokeLyrics").querySelectorAll(".karaoke-line");
+  lines.forEach((line, i) => line.classList.toggle("active", i === index));
+  const active = lines[index];
+  if (active) active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+function updateKaraokeLyrics() {
+  const player = $("#karaokePlayer");
+  const duration = Number.isFinite(player.duration) ? player.duration : 0;
+  const current = player.currentTime || 0;
+  $("#karaokeClock").textContent = formatTime(current) + " / " + formatTime(duration);
+  if (karaokeLines.length && duration > 0) {
+    const index = Math.min(karaokeLines.length - 1, Math.floor((current / duration) * karaokeLines.length));
+    highlightKaraokeLine(index);
+  }
+}
+$("#karaokeSongSelect").addEventListener("change", () => {
+  $("#karaokeTitle").textContent = currentSongTitle || "Your song";
+});
+$("#karaokePlayer").addEventListener("timeupdate", updateKaraokeLyrics);
+$("#karaokePlayer").addEventListener("loadedmetadata", updateKaraokeLyrics);
+$("#karaokePlayer").addEventListener("ended", () => {
+  highlightKaraokeLine(0);
+  $("#karaokeStatus").textContent = "Karaoke finished. Replay or record another performance.";
+});
+$("#karaokePlayBtn").addEventListener("click", async () => {
+  const player = $("#karaokePlayer");
+  if (!player.src) return;
+  try {
+    if (player.ended) player.currentTime = 0;
+    await player.play();
+    $("#karaokeStatus").textContent = "Sing along! Lyrics highlight follows the instrumental timeline.";
+  } catch {
+    $("#karaokeStatus").textContent = "Tap Play on the audio player to begin karaoke.";
+  }
+});
+$("#karaokeRecordBtn").addEventListener("click", async () => {
+  const player = $("#karaokePlayer");
+  if (!player.src || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    $("#karaokeStatus").textContent = "Microphone recording is unavailable in this browser. Use updated Chrome over HTTPS.";
+    return;
+  }
+  try {
+    karaokeMicStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    karaokeChunks = [];
+    const options = {};
+    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) options.mimeType = "audio/webm;codecs=opus";
+    karaokeRecorder = new MediaRecorder(karaokeMicStream, options);
+    karaokeRecorder.ondataavailable = event => { if (event.data?.size) karaokeChunks.push(event.data); };
+    karaokeRecorder.onstop = () => {
+      karaokeMicStream?.getTracks().forEach(track => track.stop());
+      karaokeMicStream = null;
+      const blob = new Blob(karaokeChunks, { type: karaokeRecorder.mimeType || "audio/webm" });
+      if (karaokeVocalUrl) URL.revokeObjectURL(karaokeVocalUrl);
+      karaokeVocalUrl = URL.createObjectURL(blob);
+      const link = $("#karaokeDownloadVocal");
+      link.href = karaokeVocalUrl;
+      link.download = (currentSongTitle.replace(/[^a-z0-9-_]+/gi, "-") || "karaoke") + "-vocal.webm";
+      link.hidden = false;
+      $("#karaokeStatus").textContent = "Vocal recording saved locally. Download it below. Use headphones to reduce instrumental bleed.";
+      $("#karaokeRecordBtn").disabled = false;
+      $("#karaokeStopRecordBtn").disabled = true;
+    };
+    if (player.ended) player.currentTime = 0;
+    karaokeRecorder.start();
+    $("#karaokeRecordBtn").disabled = true;
+    $("#karaokeStopRecordBtn").disabled = false;
+    $("#karaokeStatus").textContent = "Recording your microphone. The instrumental is playing—sing now!";
+    await player.play();
+  } catch (error) {
+    karaokeMicStream?.getTracks().forEach(track => track.stop());
+    karaokeMicStream = null;
+    $("#karaokeRecordBtn").disabled = false;
+    $("#karaokeStopRecordBtn").disabled = true;
+    $("#karaokeStatus").textContent = error?.name === "NotAllowedError" ? "Microphone permission was denied. Allow microphone access in Chrome site settings." : "Could not start karaoke recording. Check your microphone and try again.";
+  }
+});
+$("#karaokeStopRecordBtn").addEventListener("click", () => {
+  if (karaokeRecorder?.state === "recording") karaokeRecorder.stop();
+  $("#karaokePlayer").pause();
+  $("#karaokeStopRecordBtn").disabled = true;
+});
+
 window.addEventListener("beforeunload", () => {
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   capturedStream?.getTracks().forEach((track) => track.stop());
+  karaokeMicStream?.getTracks().forEach(track => track.stop());
+  if (karaokeVocalUrl) URL.revokeObjectURL(karaokeVocalUrl);
 });
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

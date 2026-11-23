@@ -31,7 +31,8 @@
       <div class="step active"><span>1</span><b>VOICE</b><small>Capture</small></div>
       <div class="step"><span>2</span><b>PROFILE</b><small>Analyze</small></div>
       <div class="step"><span>3</span><b>SONG</b><small>Create</small></div>
-      <div class="step"><span>4</span><b>VISUAL</b><small>Experience</small></div>
+      <div class="step"><span>4</span><b>VIDEOKE</b><small>Sing</small></div>
+      <div class="step"><span>5</span><b>VISUAL</b><small>Experience</small></div>
     </section>
 
     <section class="studio-card" id="voiceStudio">
@@ -97,10 +98,35 @@
       <div id="songResult" class="result" hidden></div>
     </section>
 
+    <section class="studio-card" id="videokeStudio">
+      <div class="section-head">
+        <div><p class="eyebrow">04 • VIDEOKE STUDIO</p><h2>Choose a song and sing</h2></div>
+        <span class="pill">LOCAL KARAOKE MVP</span>
+      </div>
+      <p class="muted">Your generated studio songs appear here. Play the instrumental, follow the timed lyric highlight, and record your own authorized vocal performance. Headphones are recommended.</p>
+      <label>Song selection
+        <select id="karaokeSongSelect" disabled><option value="">Create a song and instrumental first</option></select>
+      </label>
+      <div class="karaoke-screen" aria-live="polite">
+        <div class="karaoke-topline"><span>♪ NOW SINGING</span><span id="karaokeClock">0:00 / 0:00</span></div>
+        <h3 id="karaokeTitle">Your song will appear here</h3>
+        <div id="karaokeLyrics" class="karaoke-lyrics"><p class="karaoke-placeholder">Generate a song blueprint and instrumental to start karaoke.</p></div>
+      </div>
+      <audio id="karaokePlayer" controls hidden></audio>
+      <div class="controls">
+        <button id="karaokePlayBtn" class="primary" disabled>▶ Start Karaoke</button>
+        <button id="karaokeRecordBtn" disabled>🎙️ Sing & Record</button>
+        <button id="karaokeStopRecordBtn" disabled>⏹ Stop Recording</button>
+      </div>
+      <p id="karaokeStatus" class="status-text">Your local song library is waiting for its first generated track.</p>
+      <a id="karaokeDownloadVocal" class="download-link" hidden>⬇ Download Vocal Recording (.webm)</a>
+      <p class="engine-note">First build: karaoke playback and estimated lyric timing for songs created in this studio. A licensed commercial-song catalog, original full-length AI music, and professional vocal synthesis require separate services and music rights.</p>
+    </section>
+
     <section class="studio-card">
       <div class="section-head">
         <div>
-          <p class="eyebrow">04 • VISUAL MUSIC</p>
+          <p class="eyebrow">05 • VISUAL MUSIC</p>
           <h2>Prepare the visual experience</h2>
         </div>
         <span class="pill">COMING CORE</span>
@@ -110,6 +136,12 @@
         <div><strong id="visualTitle">Your song visual will appear here</strong><p>Lyrics, music, authorized voice singing and animation will plug into this layer as real generation engines are connected.</p></div>
       </div>
     </section>
+
+
+
+
+
+
 
     <footer>
       <strong>SOUNDS GENERATOR LAB STUDIO</strong>
