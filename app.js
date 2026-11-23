@@ -85,34 +85,146 @@ playBtn.addEventListener("click", async () => {
   catch { setStatus("Tap the audio player to play your recording."); }
 });
 
+function percentile(values, fraction) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const position = (sorted.length - 1) * fraction;
+  const lower = Math.floor(position), upper = Math.ceil(position);
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
+}
+
+// Estimate fundamental pitch from short, voiced frames. This is a lightweight
+// browser-side estimate, not speaker identification or a complete vocal-range test.
+function estimatePitchFrames(audioBuffer) {
+  const source = audioBuffer.getChannelData(0);
+  const factor = Math.max(1, Math.floor(audioBuffer.sampleRate / 12000));
+  const sampleRate = audioBuffer.sampleRate / factor;
+  const samples = new Float32Array(Math.ceil(source.length / factor));
+  for (let i = 0, j = 0; i < source.length; i += factor, j++) {
+    let sum = 0, count = 0;
+    for (let k = i; k < Math.min(i + factor, source.length); k++) { sum += source[k]; count++; }
+    samples[j] = sum / count;
+  }
+
+  const frameSize = 2048, hop = 1024;
+  const minLag = Math.max(2, Math.floor(sampleRate / 500));
+  const maxLag = Math.min(Math.floor(sampleRate / 65), frameSize - 2);
+  const pitches = [];
+
+  for (let offset = 0; offset + frameSize <= samples.length; offset += hop) {
+    let mean = 0;
+    for (let i = 0; i < frameSize; i++) mean += samples[offset + i];
+    mean /= frameSize;
+
+    const frame = new Float32Array(frameSize);
+    let energy = 0;
+    for (let i = 0; i < frameSize; i++) {
+      const value = samples[offset + i] - mean;
+      frame[i] = value;
+      energy += value * value;
+    }
+    const rms = Math.sqrt(energy / frameSize);
+    if (rms < 0.012) continue;
+
+    const correlations = new Float32Array(maxLag + 1);
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let cross = 0, leftEnergy = 0, rightEnergy = 0;
+      for (let i = 0; i < frameSize - lag; i++) {
+        const a = frame[i], b = frame[i + lag];
+        cross += a * b;
+        leftEnergy += a * a;
+        rightEnergy += b * b;
+      }
+      correlations[lag] = cross / Math.sqrt(leftEnergy * rightEnergy + 1e-12);
+    }
+
+    let selectedLag = -1;
+    for (let lag = minLag + 1; lag < maxLag; lag++) {
+      if (correlations[lag] > 0.55 &&
+          correlations[lag] >= correlations[lag - 1] &&
+          correlations[lag] >= correlations[lag + 1]) {
+        selectedLag = lag;
+        break;
+      }
+    }
+    if (selectedLag < 0) {
+      let best = 0;
+      for (let lag = minLag; lag <= maxLag; lag++) {
+        if (correlations[lag] > best) { best = correlations[lag]; selectedLag = lag; }
+      }
+      if (best < 0.35) continue;
+    }
+
+    const before = correlations[selectedLag - 1] || 0;
+    const center = correlations[selectedLag] || 0;
+    const after = correlations[selectedLag + 1] || 0;
+    const denominator = before - 2 * center + after;
+    const adjustment = Math.abs(denominator) > 1e-9
+      ? 0.5 * (before - after) / denominator : 0;
+    const refinedLag = selectedLag + Math.max(-0.5, Math.min(0.5, adjustment));
+    const pitch = sampleRate / refinedLag;
+    if (pitch >= 65 && pitch <= 500) pitches.push(pitch);
+  }
+  return pitches;
+}
+
 analyzeBtn.addEventListener("click", async () => {
   if (!audioUrl || !sampleReady) return;
   analyzeBtn.disabled = true;
+  generateBtn.disabled = true;
   $("#profile").textContent = "Analyzing…";
+  $("#analysisNote").textContent = "Measuring signal level and estimating pitch from voiced portions of the recording…";
+  let context;
   try {
     const response = await fetch(audioUrl);
+    if (!response.ok) throw new Error("Could not read the recorded audio.");
     const buffer = await response.arrayBuffer();
-    const context = new AudioContext();
+    context = new AudioContext();
     const decoded = await context.decodeAudioData(buffer.slice(0));
     const samples = decoded.getChannelData(0);
     let sum = 0;
     for (const value of samples) sum += value * value;
     const rms = Math.sqrt(sum / samples.length);
+    const pitches = estimatePitchFrames(decoded);
+
     $("#duration").textContent = decoded.duration.toFixed(1) + " sec";
     $("#level").textContent = (rms * 100).toFixed(1) + "%";
     $("#profile").textContent = rms > 0.12 ? "Strong / expressive" : rms > 0.035 ? "Balanced / conversational" : "Soft / intimate";
-    await context.close();
+
+    if (pitches.length >= 3) {
+      const median = percentile(pitches, 0.5);
+      const low = percentile(pitches, 0.1);
+      const high = percentile(pitches, 0.9);
+      const deviations = pitches.map(value => Math.abs(1200 * Math.log2(value / median)));
+      const variation = percentile(deviations, 0.5);
+      $("#pitchMedian").textContent = Math.round(median) + " Hz";
+      $("#pitchRange").textContent = Math.round(low) + "–" + Math.round(high) + " Hz";
+      $("#pitchStability").textContent = "±" + Math.round(variation) + " cents";
+      $("#analysisNote").textContent = "Estimated from " + pitches.length + " voiced frames. Pitch span describes this sample only—not your full singing range. Results can vary with speech, background noise and microphone quality.";
+    } else {
+      $("#pitchMedian").textContent = "Not detected";
+      $("#pitchRange").textContent = "Not detected";
+      $("#pitchStability").textContent = "Not enough data";
+      $("#analysisNote").textContent = "We measured the recording level, but could not find enough clear pitched audio. Try a 5–15 second sample with a steady spoken or sung voice and less background noise.";
+    }
+
     profileReady = true;
     generateBtn.disabled = false;
-    setStatus("Voice profile ready. You can now build your song idea.");
+    setStatus("Voice analysis complete. You can now build your song idea.");
   } catch (error) {
-    $("#duration").textContent = "Captured";
-    $("#level").textContent = "Available";
-    $("#profile").textContent = "Sample ready";
-    profileReady = true;
-    generateBtn.disabled = false;
-    setStatus("Basic voice profile prepared. You can now build your song idea.");
-  } finally { analyzeBtn.disabled = false; }
+    profileReady = false;
+    $("#pitchMedian").textContent = "—";
+    $("#pitchRange").textContent = "—";
+    $("#pitchStability").textContent = "—";
+    $("#profile").textContent = "Analysis unavailable";
+    $("#analysisNote").textContent = "The browser could not decode this recording for analysis. Please record a new sample using an updated Chrome browser.";
+    setStatus("Could not analyze this recording. Please try recording again.");
+  } finally {
+    if (context && context.state !== "closed") await context.close().catch(() => {});
+    analyzeBtn.disabled = false;
+    generateBtn.disabled = !profileReady;
+  }
 });
 
 
