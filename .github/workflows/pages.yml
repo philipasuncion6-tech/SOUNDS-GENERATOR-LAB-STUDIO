@@ -1,4 +1,5 @@
 name: Deploy Sounds Generator Lab Studio
+# Fresh deployment trigger after resolving duplicate artifacts from a previous retry.
 
 on:
   push:
