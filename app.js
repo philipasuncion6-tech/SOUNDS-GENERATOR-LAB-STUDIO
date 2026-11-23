@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 let mediaRecorder = null, chunks = [], audioUrl = "", analyser = null, meterFrame = null, audioContext = null, capturedStream = null;
-let sampleReady = false, profileReady = false;\n
+let sampleReady = false, profileReady = false;
+
 const consent = $("#consent"), recordBtn = $("#recordBtn"), stopBtn = $("#stopBtn"), playBtn = $("#playBtn"), analyzeBtn = $("#analyzeBtn"), generateBtn = $("#generateBtn"), recordStatus = $("#recordStatus");
 function setStatus(message) { recordStatus.textContent = message; }
 consent.addEventListener("change", () => { recordBtn.disabled = !consent.checked || mediaRecorder?.state === "recording"; });
@@ -350,7 +351,8 @@ generateBtn.addEventListener("click", () => {
       const blob = await createBackingTrack(style);
       if (window.currentBackingTrackUrl) URL.revokeObjectURL(window.currentBackingTrackUrl);
       window.currentBackingTrackUrl = URL.createObjectURL(blob);
-      player.src = window.currentBackingTrackUrl; player.hidden = false;\n      addVisualizer(player, player.parentElement);
+      player.src = window.currentBackingTrackUrl; player.hidden = false;
+      addVisualizer(player, player.parentElement);
       download.href = window.currentBackingTrackUrl; download.hidden = false;
       status.textContent = "Instrumental preview ready. Press Play — the live waveform will appear on Android Chrome too.";
     } catch (error) {
@@ -362,4 +364,7 @@ generateBtn.addEventListener("click", () => {
 window.addEventListener("beforeunload", () => {
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   capturedStream?.getTracks().forEach((track) => track.stop());
-});\nif ("serviceWorker" in navigator) {\n  window.addEventListener("load", () => {\n    navigator.serviceWorker.register("./sw.js").catch(() => {});\n  });\n}\n
+});
+if ("serviceWorker" in navigator) {\n  window.addEventListener("load", () => {\n    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}\n
